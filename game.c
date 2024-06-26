@@ -1,5 +1,6 @@
 #include <time.h>
 #include <stdlib.h>
+#include <locale.h>
 
 #include <raylib.h>
 #include <raymath.h>
@@ -9,6 +10,9 @@
 
 const int larguraTela = 600;
 const int comprimentoTela = 480;
+const char* derrota = "Você perdeu!";
+const char* reiniciar = "Aperte espaço para reiniciar.";
+const char* vitoria = "Você ganhou!";
 
 const int larguraBloco = larguraTela / colunas;
 const int comprimentoBloco = comprimentoTela / linhas;
@@ -22,9 +26,20 @@ typedef struct Bloco{
     int bombasProximas;
 }Bloco;
 
+typedef enum GameStatus{
+    JOGANDO,
+    DERROTA,
+    VITORIA
+}GameStatus;
+
+GameStatus status;
+
 Bloco grid[linhas][colunas];
 
 Texture2D flagImagem;
+Texture2D bombaImagem;
+int blocosRevelados;
+int bombasExistentes;
 
 bool IndexValido(int, int);
 void DesenharBloco(Bloco);
@@ -33,16 +48,18 @@ void BlocoFlag(int, int);
 int BlocoBombasProximas(int, int);
 void IniciarGrid(void);
 void LimparGrid(int, int);
+void GameInit(void);
 
 int main(){
-
+    setlocale(LC_ALL, "Portuguese");
     Color lightGray = {211, 211, 211, 255};
     InitWindow(larguraTela, comprimentoTela, "Campo Minado");
     SetTargetFPS(60);
 
     flagImagem = LoadTexture("texture/flag.png");
+    bombaImagem = LoadTexture("texture/bomba.png");
 
-    IniciarGrid();
+    GameInit();
 
     while(WindowShouldClose() == false){
 
@@ -51,7 +68,7 @@ int main(){
             int indexI = mPos.x / larguraBloco;
             int indexJ = mPos.y / comprimentoBloco;
 
-            if(IndexValido(indexI, indexJ)){
+            if(status == JOGANDO && IndexValido(indexI, indexJ) && !grid[indexI][indexJ].revelado){
                 RevelarBloco(indexI, indexJ);
             }
         }else if(IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)){
@@ -59,10 +76,15 @@ int main(){
             int indexI = mPos.x / larguraBloco;
             int indexJ = mPos.y / comprimentoBloco;
 
-            if(IndexValido(indexI, indexJ)){
+            if(status == JOGANDO && IndexValido(indexI, indexJ)){
                 BlocoFlag(indexI, indexJ);
             }
         }
+        
+        if(IsKeyPressed(KEY_SPACE)){
+            GameInit();
+        }
+
         BeginDrawing();
         ClearBackground(lightGray);
 
@@ -70,6 +92,18 @@ int main(){
             for(int j=0; j < linhas; j++){
                 DesenharBloco(grid[i][j]);
             }
+        }
+
+        if(status == DERROTA){
+            DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
+            DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 20, 30,  BLACK);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
+        }
+
+        if(status == VITORIA){
+            DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.9f));
+            DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 20, 30,  GREEN);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
         }
 
         EndDrawing();
@@ -83,7 +117,11 @@ int main(){
 void DesenharBloco(Bloco bloco){
     if(bloco.revelado){
         if(bloco.possuiBomba){
-            DrawRectangle(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, RED);
+        Rectangle source = {0, 0, bombaImagem.width, bombaImagem.height};
+        Rectangle dest = {bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco};
+        Vector2 origin = {0, 0};
+
+        DrawTexturePro(bombaImagem, source, dest, origin, 0.0f, Fade(RED, 0.8f));
         }else{
             DrawRectangle(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, GRAY);
             if(bloco.bombasProximas > 0){
@@ -113,10 +151,16 @@ void RevelarBloco(int i, int j){
     grid[i][j].revelado = true;
 
     if(grid[i][j].possuiBomba){
-        // perde
+        status = DERROTA;
+
     }else{
         if(grid[i][j].bombasProximas == 0){
             LimparGrid(i, j);
+        }
+        blocosRevelados++;
+
+        if(blocosRevelados == linhas * colunas - bombasExistentes){
+            status = VITORIA;
         }
     }
 }
@@ -162,7 +206,8 @@ void IniciarGrid(void){
     }
 
     // Colocando Bombas
-    int quantidadeBombas = (int)(linhas * colunas * 0.1f);
+    bombasExistentes = (int)(linhas * colunas * 0.1f);
+    int quantidadeBombas = bombasExistentes;
     while(quantidadeBombas > 0){
         int i = rand() % colunas;
         int j = rand() % linhas;
@@ -197,4 +242,10 @@ void LimparGrid(int i, int j){
             }            
         }
     }
+}
+
+void GameInit(void){
+    IniciarGrid();
+    status = JOGANDO;
+    blocosRevelados = 0;
 }
