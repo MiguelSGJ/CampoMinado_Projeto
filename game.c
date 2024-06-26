@@ -40,6 +40,8 @@ Texture2D flagImagem;
 Texture2D bombaImagem;
 int blocosRevelados;
 int bombasExistentes;
+float inicioCronometro;
+float fimCronometro;
 
 bool IndexValido(int, int);
 void DesenharBloco(Bloco);
@@ -98,12 +100,20 @@ int main(){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
             DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 20, 30,  BLACK);
             DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
+
+            int minutos = (int)(fimCronometro - inicioCronometro) / 60;
+            int segundos = (int)(fimCronometro - inicioCronometro) % 60;
+            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, BLACK);
         }
 
         if(status == VITORIA){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.9f));
             DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 20, 30,  GREEN);
             DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
+
+            int minutos = (int)(fimCronometro - inicioCronometro) / 60;
+            int segundos = (int)(fimCronometro - inicioCronometro) % 60;
+            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, BLACK);
         }
 
         EndDrawing();
@@ -152,6 +162,7 @@ void RevelarBloco(int i, int j){
 
     if(grid[i][j].possuiBomba){
         status = DERROTA;
+        fimCronometro = GetTime();
 
     }else{
         if(grid[i][j].bombasProximas == 0){
@@ -161,6 +172,7 @@ void RevelarBloco(int i, int j){
 
         if(blocosRevelados == linhas * colunas - bombasExistentes){
             status = VITORIA;
+            fimCronometro = GetTime();
         }
     }
 }
@@ -248,4 +260,5 @@ void GameInit(void){
     IniciarGrid();
     status = JOGANDO;
     blocosRevelados = 0;
+    inicioCronometro = GetTime();
 }
