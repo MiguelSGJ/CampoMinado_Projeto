@@ -27,6 +27,7 @@ typedef struct Bloco{
 }Bloco;
 
 typedef enum GameStatus{
+    MENU,
     JOGANDO,
     DERROTA,
     VITORIA
@@ -61,9 +62,25 @@ int main(){
     flagImagem = LoadTexture("texture/flag.png");
     bombaImagem = LoadTexture("texture/bomba.png");
 
-    GameInit();
+    status = MENU;
 
     while(WindowShouldClose() == false){
+         if (status == MENU) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mousePoint = GetMousePosition();
+
+                Rectangle playButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 50, 100, 50 };
+                Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 10, 100, 50 };
+
+                if (CheckCollisionPointRec(mousePoint, playButton)) {
+                    status = JOGANDO;
+                    GameInit();
+                } else if (CheckCollisionPointRec(mousePoint, exitButton)) {
+                    CloseWindow();
+                    return 0;
+                }
+            }
+        }
 
         if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
             Vector2 mPos = GetMousePosition();
@@ -90,11 +107,27 @@ int main(){
         BeginDrawing();
         ClearBackground(lightGray);
 
-        for(int i= 0; i < colunas; i++){
-            for(int j=0; j < linhas; j++){
-                DesenharBloco(grid[i][j]);
+        if (status == MENU)
+        {
+            DrawText("Campo Minado", larguraTela / 2 - MeasureText("Campo Minado", 40) / 1.75, comprimentoTela / 4, 55, BLACK);
+
+            Rectangle playButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 50, 100, 50 };
+            Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 10, 100, 50 };
+
+            DrawRectangleRec(playButton, DARKGRAY);
+            DrawRectangleRec(exitButton, DARKGRAY);
+
+            DrawText("Jogar", larguraTela / 2 - MeasureText("Jogar", 20) / 2, comprimentoTela / 2 - 35, 20, BLACK);
+            DrawText("Sair", larguraTela / 2 - MeasureText("Sair", 20) / 2, comprimentoTela / 2 + 25, 20, BLACK);
+        } else {
+            for (int i = 0; i < colunas; i++) {
+                for (int j = 0; j < linhas; j++) {
+                    DesenharBloco(grid[i][j]);
+                }
             }
         }
+        
+        
 
         if(status == DERROTA){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
@@ -256,7 +289,7 @@ void LimparGrid(int i, int j){
     }
 }
 
-void GameInit(void){
+void GameInit(){
     IniciarGrid();
     status = JOGANDO;
     blocosRevelados = 0;
