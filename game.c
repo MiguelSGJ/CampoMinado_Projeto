@@ -8,6 +8,7 @@
 #define linhas 16
 #define colunas 16
 
+// VARIAVEIS CONSTANTES
 const int larguraTela = 600;
 const int comprimentoTela = 480;
 const char* derrota = "Você perdeu!";
@@ -17,6 +18,7 @@ const char* vitoria = "Você ganhou!";
 const int larguraBloco = larguraTela / colunas;
 const int comprimentoBloco = comprimentoTela / linhas;
 
+// ESTRUTURA DE CADA BLOCO/CELULA DA MATRIZ DO JOGO
 typedef struct Bloco{
     int i;
     int j;
@@ -26,6 +28,7 @@ typedef struct Bloco{
     int bombasProximas;
 }Bloco;
 
+// ESTRUTURA DO TIPO ENUM PARA DEFINIR O ESTADO ATUAL DO JOGADOR
 typedef enum GameStatus{
     MENU,
     JOGANDO,
@@ -44,6 +47,7 @@ int bombasExistentes;
 float inicioCronometro;
 float fimCronometro;
 
+// PROTOTIPAGEM DAS FUNÇÕES
 bool IndexValido(int, int);
 void DesenharBloco(Bloco);
 void RevelarBloco(int, int);
@@ -59,12 +63,17 @@ int main(){
     InitWindow(larguraTela, comprimentoTela, "Campo Minado");
     SetTargetFPS(60);
 
+    // CARREGANDO AS IMAGENS DA BANDEIRA E DA BOMBA
     flagImagem = LoadTexture("texture/flag.png");
     bombaImagem = LoadTexture("texture/bomba.png");
 
+    // FAZ O JOGO COMEÇAR NO MENU
     status = MENU;
 
+    // ENQUANTO A JANELA NÃO FECHAR O JOGO VAI RODAR
     while(WindowShouldClose() == false){
+
+        // ESTRUTURA DO MENU 
          if (status == MENU) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 Vector2 mousePoint = GetMousePosition();
@@ -82,6 +91,7 @@ int main(){
             }
         }
 
+        // "Funções" para registrar o clique do mouse e revelar ou colocar uma flag no bloco
         if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
             Vector2 mPos = GetMousePosition();
             int indexI = mPos.x / larguraBloco;
@@ -100,6 +110,7 @@ int main(){
             }
         }
         
+        // Apertar Espaço para reiniciar o jogo
         if(IsKeyPressed(KEY_SPACE)){
             GameInit();
         }
@@ -107,6 +118,7 @@ int main(){
         BeginDrawing();
         ClearBackground(lightGray);
 
+        // "Frontend" do MENU
         if (status == MENU)
         {
             DrawText("Campo Minado", larguraTela / 2 - MeasureText("Campo Minado", 40) / 1.75, comprimentoTela / 4, 55, BLACK);
@@ -128,7 +140,7 @@ int main(){
         }
         
         
-
+        // MENSAGEM DE DERROTA E VITÓRIA
         if(status == DERROTA){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
             DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 20, 30,  BLACK);
@@ -157,6 +169,7 @@ int main(){
     return 0;
 }
 
+// Função para desenhar os blocos com bombas e/ou flags e desenhar a grid do jogo
 void DesenharBloco(Bloco bloco){
     if(bloco.revelado){
         if(bloco.possuiBomba){
@@ -182,10 +195,12 @@ void DesenharBloco(Bloco bloco){
     DrawRectangleLines(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, BLACK);
 }
 
+// Função para verificar se o index que o usuario clicou é valida
 bool IndexValido(int i, int j){
     return i >= 0 && i < colunas && j >= 0 && j <  linhas;
 }
 
+// Função para que ao clicar no bloco revele se tem ou não uma bomba
 void RevelarBloco(int i, int j){
     if(grid[i][j].possuiFlag || grid[i][j].revelado){
         return;
@@ -210,6 +225,7 @@ void RevelarBloco(int i, int j){
     }
 }
 
+// Função para colocar ou tirar a flag
 void BlocoFlag(int i, int j){
     if(grid[i][j].revelado){
         return;
@@ -218,10 +234,11 @@ void BlocoFlag(int i, int j){
     grid[i][j].possuiFlag = !grid[i][j].possuiFlag;
 }
 
+// Função para contar a quantidade de bombas ao redor do bloco
 int BlocoBombasProximas(int i, int j){
     int contagem = 0;
-    for(int ioff= -1 ; ioff <= 1; ioff++){
-        for(int joff= -1 ; joff <= 1; joff++){
+    for(int ioff= -1 ; ioff <= 1; ioff++){ // ioff representa o bloco da linha anterior, da linha do proprio bloco e a proxima linha
+        for(int joff= -1 ; joff <= 1; joff++){ // joff representa o bloco da linha anterior, da linha do proprio bloco e a proxima linha
             if(ioff == 0 && joff == 0){
                 continue;
             }
@@ -237,10 +254,11 @@ int BlocoBombasProximas(int i, int j){
     return contagem;
 }
 
+// Inicialização da grid
 void IniciarGrid(void){
     for(int i=0; i < colunas; i++){
         for(int j=0; j< linhas; j++){
-            grid[i][j] = (Bloco) {
+            grid[i][j] = (Bloco) { // Iniciando a struct bloco
                 .i = i,
                 .j = j,
                 .possuiBomba = false,
@@ -272,6 +290,7 @@ void IniciarGrid(void){
     }
 }
 
+// Função para retirar todos os blocos ao redor que possuem o valor 0 e assim não poluir visualmente o jogo
 void LimparGrid(int i, int j){
     for(int ioff= -1 ; ioff <= 1; ioff++){
         for(int joff= -1 ; joff <= 1; joff++){
@@ -289,6 +308,7 @@ void LimparGrid(int i, int j){
     }
 }
 
+// Inicializar o jogo
 void GameInit(){
     IniciarGrid();
     status = JOGANDO;
