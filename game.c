@@ -16,6 +16,7 @@ const int larguraTela = 600;
 const int comprimentoTela = 480;
 const char* derrota = "Você perdeu!";
 const char* reiniciar = "Aperte espaço para reiniciar.";
+const char* home = "Aperte home para voltar ao menu.";
 const char* vitoria = "Você ganhou!";
 
 const int larguraBloco = larguraTela / colunas;
@@ -67,6 +68,7 @@ float inicioCronometro;
 float fimCronometro;
 float ignoreClickTime = 0.3f;
 float transitionTime = 0.0f;
+bool mostrarTelaFinal = false; // Nova variável para monitorar se a tela final foi exibida
 
 // PROTOTIPAGEM DAS FUNÇÕES
 bool IndexValido(int, int);
@@ -155,6 +157,8 @@ int main(){
 
             if(status == JOGANDO && IndexValido(indexI, indexJ) && !grid[indexI][indexJ].revelado){
                 RevelarBloco(indexI, indexJ);
+            } else if ((status == DERROTA || status == VITORIA) && !mostrarTelaFinal) {
+                mostrarTelaFinal = true;
             }
         }else if(IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)){
             Vector2 mPos = GetMousePosition();
@@ -213,28 +217,35 @@ int main(){
             DrawText("Difícil", larguraTela / 2 - MeasureText("Difícil", 20) / 2, comprimentoTela / 2 + 65, 20, BLACK);
         }
 
-        if(status == DERROTA){
+        if (status == RANKING){
+            DrawText("Ranking", 50, 50, 30, BLACK);
+            ExibirRanking(ranking, tamanhoRanking);
+        }
+
+        if(status == DERROTA && mostrarTelaFinal){
+            Vector2 mousePoint = GetMousePosition();
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
-            DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 20, 30,  BLACK);
-            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
+            DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 50, 30,  BLACK);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30,  BLACK);
+            DrawText(home, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.85f, 30,  BLACK);
 
             int minutos = (int)(fimCronometro - inicioCronometro) / 60;
             int segundos = (int)(fimCronometro - inicioCronometro) % 60;
-            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, BLACK);
+            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, RED);
         }
 
-        if(status == VITORIA){
+        if(status == VITORIA && mostrarTelaFinal){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.9f));
-            DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 20, 30,  GREEN);
-            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.55f, 30,  BLACK);
+            DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 50, 30,  GREEN);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30,  BLACK);
 
             int minutos = (int)(fimCronometro - inicioCronometro) / 60;
             int segundos = (int)(fimCronometro - inicioCronometro) % 60;
-            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, BLACK);
+            DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, RED);
         }
 
-        // Garantindo que so vai desenhar a grid quando o status for envolvendo o jogo(JOGANDO, DERROTA E VITORIA)
-        if(status == JOGANDO || status == DERROTA || status == VITORIA){
+        // Garantindo que só vai desenhar a grid quando o status for envolvendo o jogo (JOGANDO, DERROTA e VITORIA)
+        if(status == JOGANDO || (status == DERROTA && !mostrarTelaFinal) || (status == VITORIA && !mostrarTelaFinal)){
             for (int i = 0; i < colunas; i++) {
                 for (int j = 0; j < linhas; j++) {
                     DesenharBloco(grid[i][j]);
@@ -242,11 +253,8 @@ int main(){
             }
         }
         
-        
-
         EndDrawing();
     }
-
 
     CloseWindow();
     return 0;
@@ -256,15 +264,15 @@ int main(){
 void DesenharBloco(Bloco bloco){
     if(bloco.revelado){
         if(bloco.possuiBomba){
-        Rectangle source = {0, 0, bombaImagem.width, bombaImagem.height};
-        Rectangle dest = {bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco};
-        Vector2 origin = {0, 0};
+            Rectangle source = {0, 0, bombaImagem.width, bombaImagem.height};
+            Rectangle dest = {bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco};
+            Vector2 origin = {0, 0};
 
-        DrawTexturePro(bombaImagem, source, dest, origin, 0.0f, Fade(RED, 0.8f));
+            DrawTexturePro(bombaImagem, source, dest, origin, 0.0f, Fade(RED, 0.8f));
         }else{
             DrawRectangle(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, GRAY);
             if(bloco.bombasProximas > 0){
-            DrawText(TextFormat("%d", bloco.bombasProximas), bloco.i * larguraBloco + 8, bloco.j * comprimentoBloco + 8, comprimentoBloco - 8, BLACK);
+                DrawText(TextFormat("%d", bloco.bombasProximas), bloco.i * larguraBloco + 8, bloco.j * comprimentoBloco + 8, comprimentoBloco - 8, BLACK);
             }
         }
     }else if(bloco.possuiFlag){
@@ -278,9 +286,9 @@ void DesenharBloco(Bloco bloco){
     DrawRectangleLines(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, BLACK);
 }
 
-// Função para verificar se o index que o usuario clicou é valida
+// Função para verificar se o index que o usuário clicou é válido
 bool IndexValido(int i, int j){
-    return i >= 0 && i < colunas && j >= 0 && j <  linhas;
+    return i >= 0 && i < colunas && j >= 0 && j < linhas;
 }
 
 // Função para que ao clicar no bloco revele se tem ou não uma bomba
@@ -320,8 +328,8 @@ void BlocoFlag(int i, int j){
 // Função para contar a quantidade de bombas ao redor do bloco
 int BlocoBombasProximas(int i, int j){
     int contagem = 0;
-    for(int ioff= -1 ; ioff <= 1; ioff++){ // ioff representa o bloco da linha anterior, da linha do proprio bloco e a proxima linha
-        for(int joff= -1 ; joff <= 1; joff++){ // joff representa o bloco da linha anterior, da linha do proprio bloco e a proxima linha
+    for(int ioff= -1 ; ioff <= 1; ioff++){ // ioff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
+        for(int joff= -1 ; joff <= 1; joff++){ // joff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
             if(ioff == 0 && joff == 0){
                 continue;
             }
@@ -330,7 +338,7 @@ int BlocoBombasProximas(int i, int j){
                 continue;
             }
             if(grid[i + ioff][j + joff].possuiBomba){
-                    contagem++;
+                contagem++;
             }            
         }
     }
@@ -359,9 +367,10 @@ void IniciarGrid(void){
         break;
     case MEDIO:
         bombasExistentes = (int)(linhas * colunas * 0.2f);
-    
+        break;
     case DIFICIL:
         bombasExistentes = (int)(linhas * colunas * 0.3f);
+        break;
     }
 
     int quantidadeBombas = bombasExistentes;
@@ -375,7 +384,7 @@ void IniciarGrid(void){
         }
     }
 
-    // Colocando a quantidade de bombas proximas
+    // Colocando a quantidade de bombas próximas
     for(int i=0; i < colunas; i++){
         for(int j=0; j < linhas; j++){
             if(!grid[i][j].possuiBomba){
@@ -408,11 +417,12 @@ void GameInit(){
     IniciarGrid();
     status = JOGANDO;
     blocosRevelados = 0;
-    inicioCronometro = GetTime();
+        inicioCronometro = GetTime();
+    mostrarTelaFinal = false; // Resetando a variável para a nova partida
 }
 
 void SalvarRanking(Player* ranking, int tamanho){
-    FILE* file = fopen("ranking.dat", "wb");
+    FILE* file = fopen("ranking/ranking.dat", "wb");
     if(file != NULL){
         fwrite(ranking, sizeof(Player), tamanho, file);
         fclose(file);
@@ -420,7 +430,7 @@ void SalvarRanking(Player* ranking, int tamanho){
 }
 
 int CarregarRanking(Player* ranking, int maxTamanho) {
-    FILE* file = fopen("ranking.dat", "rb");
+    FILE* file = fopen("ranking/ranking.dat", "rb");
     int tamanho = 0;
     if (file != NULL) {
         tamanho = fread(ranking, sizeof(Player), maxTamanho, file);
@@ -461,3 +471,4 @@ void ExibirRanking(Player* ranking, int tamanho) {
         DrawText(TextFormat("%d. %s - %.2f s - %s", i + 1, ranking[i].nome, ranking[i].tempo, dificuldade), 50, 100 + 30 * i, 20, BLACK);
     }
 }
+
