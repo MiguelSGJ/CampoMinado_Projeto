@@ -1,12 +1,15 @@
 #include <time.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <locale.h>
-
 #include <raylib.h>
 #include <raymath.h>
+#include <string.h>
 
 #define linhas 16
 #define colunas 16
+
+#define MAX_JOGADORES 10
 
 // VARIAVEIS CONSTANTES
 const int larguraTela = 600;
@@ -22,30 +25,48 @@ const int comprimentoBloco = comprimentoTela / linhas;
 typedef struct Bloco{
     int i;
     int j;
+    int bombasProximas;
     bool possuiBomba;
     bool possuiFlag;
     bool revelado;
-    int bombasProximas;
 }Bloco;
 
 // ESTRUTURA DO TIPO ENUM PARA DEFINIR O ESTADO ATUAL DO JOGADOR
 typedef enum GameStatus{
     MENU,
+    DIFICULDADE,
+    RANKING,
     JOGANDO,
     DERROTA,
     VITORIA
 }GameStatus;
 
-GameStatus status;
+typedef enum Dificuldade{
+    FACIL,
+    MEDIO,
+    DIFICIL
+}Dificuldade;
 
+typedef struct Player{
+    char nome[50];
+    float tempo;
+    Dificuldade dificuldade;
+}Player;
+
+Player ranking[MAX_JOGADORES];
+Dificuldade dificuldade;
+GameStatus status;
 Bloco grid[linhas][colunas];
 
 Texture2D flagImagem;
 Texture2D bombaImagem;
 int blocosRevelados;
+int tamanhoRanking = 0;
 int bombasExistentes;
 float inicioCronometro;
 float fimCronometro;
+float ignoreClickTime = 0.3f;
+float transitionTime = 0.0f;
 
 // PROTOTIPAGEM DAS FUNÇÕES
 bool IndexValido(int, int);
@@ -56,6 +77,10 @@ int BlocoBombasProximas(int, int);
 void IniciarGrid(void);
 void LimparGrid(int, int);
 void GameInit(void);
+void SalvarRanking(Player* ranking, int tamanho);
+int CarregarRanking(Player* ranking, int maxTamanho);
+void AtualizarRanking(Player* ranking, int* tamanho, Player novoJogador);
+void ExibirRanking(Player* ranking, int tamanho);
 
 int main(){
     setlocale(LC_ALL, "Portuguese");
@@ -66,6 +91,9 @@ int main(){
     // CARREGANDO AS IMAGENS DA BANDEIRA E DA BOMBA
     flagImagem = LoadTexture("texture/flag.png");
     bombaImagem = LoadTexture("texture/bomba.png");
+
+    // CARREGANDO RANKING
+    tamanhoRanking = CarregarRanking(ranking, MAX_JOGADORES);
 
     // FAZ O JOGO COMEÇAR NO MENU
     status = MENU;
@@ -79,14 +107,42 @@ int main(){
                 Vector2 mousePoint = GetMousePosition();
 
                 Rectangle playButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 50, 100, 50 };
-                Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 10, 100, 50 };
+                Rectangle rankingButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 20, 100, 50 };
+                Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 90, 100, 50 };
 
                 if (CheckCollisionPointRec(mousePoint, playButton)) {
-                    status = JOGANDO;
-                    GameInit();
+                    status = DIFICULDADE;
+                    transitionTime = GetTime();
+                } else if (CheckCollisionPointRec(mousePoint, rankingButton)) {
+                    status = RANKING;
                 } else if (CheckCollisionPointRec(mousePoint, exitButton)) {
                     CloseWindow();
                     return 0;
+                }
+            }
+        }
+
+        if (status == DIFICULDADE) {
+            float currentTime = GetTime();
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                Vector2 mousePoint = GetMousePosition();
+
+                Rectangle easyButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 90, 100, 50 };
+                Rectangle mediumButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 20, 100, 50 };
+                Rectangle HardButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 70, 100, 50 };
+
+                if (CheckCollisionPointRec(mousePoint, easyButton)) {
+                    dificuldade = FACIL;
+                    status = JOGANDO;
+                    GameInit();
+                } else if (CheckCollisionPointRec(mousePoint, mediumButton)) {
+                    dificuldade = MEDIO;
+                    status = JOGANDO;
+                    GameInit();
+                }else if(CheckCollisionPointRec(mousePoint, HardButton)){
+                    dificuldade = DIFICIL;
+                    status = JOGANDO;
+                    GameInit();
                 }
             }
         }
@@ -115,32 +171,48 @@ int main(){
             GameInit();
         }
 
+        // Apertar Home para voltar ao menu
+        if(IsKeyPressed(KEY_HOME)){
+            status = MENU;
+        }
+
         BeginDrawing();
         ClearBackground(lightGray);
 
-        // "Frontend" do MENU
-        if (status == MENU)
-        {
+        // Frontend das diversas janelas
+        if (status == MENU) {
             DrawText("Campo Minado", larguraTela / 2 - MeasureText("Campo Minado", 40) / 1.75, comprimentoTela / 4, 55, BLACK);
 
             Rectangle playButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 50, 100, 50 };
-            Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 10, 100, 50 };
+            Rectangle rankingButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 20, 100, 50 };
+            Rectangle exitButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 90, 100, 50 };
 
             DrawRectangleRec(playButton, DARKGRAY);
+            DrawRectangleRec(rankingButton, DARKGRAY);
             DrawRectangleRec(exitButton, DARKGRAY);
 
             DrawText("Jogar", larguraTela / 2 - MeasureText("Jogar", 20) / 2, comprimentoTela / 2 - 35, 20, BLACK);
-            DrawText("Sair", larguraTela / 2 - MeasureText("Sair", 20) / 2, comprimentoTela / 2 + 25, 20, BLACK);
-        } else {
-            for (int i = 0; i < colunas; i++) {
-                for (int j = 0; j < linhas; j++) {
-                    DesenharBloco(grid[i][j]);
-                }
-            }
+            DrawText("Ranking", larguraTela / 2 - MeasureText("Ranking", 20) / 2, comprimentoTela / 2 + 35, 20, BLACK);
+            DrawText("Sair", larguraTela / 2 - MeasureText("Sair", 20) / 2, comprimentoTela / 2 + 105, 20, BLACK);
         }
-        
-        
-        // MENSAGEM DE DERROTA E VITÓRIA
+
+        if (status == DIFICULDADE)
+        {
+            DrawText("Escolha a dificuldade", larguraTela / 2 - MeasureText("Escolha a dificuldade", 30) / 2, comprimentoTela / 4 - 25, 30, BLACK);
+
+            Rectangle easyButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 90, 100, 50 };
+            Rectangle mediumButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 20, 100, 50 };
+            Rectangle hardButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 50, 100, 50 };
+
+            DrawRectangleRec(easyButton, DARKGRAY);
+            DrawRectangleRec(mediumButton, DARKGRAY);
+            DrawRectangleRec(hardButton, DARKGRAY);
+
+            DrawText("Fácil", larguraTela / 2 - MeasureText("Fácil", 20) / 2, comprimentoTela / 2 - 75, 20, BLACK);
+            DrawText("Médio", larguraTela / 2 - MeasureText("Médio", 20) / 2, comprimentoTela / 2 - 5, 20, BLACK);
+            DrawText("Difícil", larguraTela / 2 - MeasureText("Difícil", 20) / 2, comprimentoTela / 2 + 65, 20, BLACK);
+        }
+
         if(status == DERROTA){
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
             DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 20, 30,  BLACK);
@@ -160,6 +232,17 @@ int main(){
             int segundos = (int)(fimCronometro - inicioCronometro) % 60;
             DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, BLACK);
         }
+
+        // Garantindo que so vai desenhar a grid quando o status for envolvendo o jogo(JOGANDO, DERROTA E VITORIA)
+        if(status == JOGANDO || status == DERROTA || status == VITORIA){
+            for (int i = 0; i < colunas; i++) {
+                for (int j = 0; j < linhas; j++) {
+                    DesenharBloco(grid[i][j]);
+                }
+            }
+        }
+        
+        
 
         EndDrawing();
     }
@@ -269,7 +352,18 @@ void IniciarGrid(void){
     }
 
     // Colocando Bombas
-    bombasExistentes = (int)(linhas * colunas * 0.1f);
+    switch (dificuldade)
+    {
+    case FACIL:
+        bombasExistentes = (int)(linhas * colunas * 0.1f);
+        break;
+    case MEDIO:
+        bombasExistentes = (int)(linhas * colunas * 0.2f);
+    
+    case DIFICIL:
+        bombasExistentes = (int)(linhas * colunas * 0.3f);
+    }
+
     int quantidadeBombas = bombasExistentes;
     while(quantidadeBombas > 0){
         int i = rand() % colunas;
@@ -281,6 +375,7 @@ void IniciarGrid(void){
         }
     }
 
+    // Colocando a quantidade de bombas proximas
     for(int i=0; i < colunas; i++){
         for(int j=0; j < linhas; j++){
             if(!grid[i][j].possuiBomba){
@@ -314,4 +409,55 @@ void GameInit(){
     status = JOGANDO;
     blocosRevelados = 0;
     inicioCronometro = GetTime();
+}
+
+void SalvarRanking(Player* ranking, int tamanho){
+    FILE* file = fopen("ranking.dat", "wb");
+    if(file != NULL){
+        fwrite(ranking, sizeof(Player), tamanho, file);
+        fclose(file);
+    }
+}
+
+int CarregarRanking(Player* ranking, int maxTamanho) {
+    FILE* file = fopen("ranking.dat", "rb");
+    int tamanho = 0;
+    if (file != NULL) {
+        tamanho = fread(ranking, sizeof(Player), maxTamanho, file);
+        fclose(file);
+    }
+    return tamanho;
+}
+
+void AtualizarRanking(Player* ranking, int* tamanho, Player novoJogador) {
+    ranking[*tamanho] = novoJogador;
+    (*tamanho)++;
+
+    for (int i = 0; i < *tamanho - 1; i++) {
+        for (int j = i + 1; j < *tamanho; j++) {
+            if (ranking[i].tempo > ranking[j].tempo) {
+                Player temp = ranking[i];
+                ranking[i] = ranking[j];
+                ranking[j] = temp;
+            }
+        }
+    }
+
+    if (*tamanho > 10) {
+        *tamanho = 10;
+    }
+
+    SalvarRanking(ranking, *tamanho);
+}
+
+void ExibirRanking(Player* ranking, int tamanho) {
+    for (int i = 0; i < tamanho; i++) {
+        char dificuldade[10];
+        switch (ranking[i].dificuldade) {
+            case FACIL: strcpy(dificuldade, "Fácil"); break;
+            case MEDIO: strcpy(dificuldade, "Médio"); break;
+            case DIFICIL: strcpy(dificuldade, "Difícil"); break;
+        }
+        DrawText(TextFormat("%d. %s - %.2f s - %s", i + 1, ranking[i].nome, ranking[i].tempo, dificuldade), 50, 100 + 30 * i, 20, BLACK);
+    }
 }
