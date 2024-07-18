@@ -16,43 +16,44 @@ const int larguraTela = 600;
 const int comprimentoTela = 480;
 const char* derrota = "Você perdeu!";
 const char* reiniciar = "Aperte espaço para reiniciar.";
-const char* home = "Aperte home para voltar ao menu.";
+const char* home = "Aperte a tecla F9 para voltar ao menu.";
 const char* vitoria = "Você ganhou!";
 
 const int larguraBloco = larguraTela / colunas;
 const int comprimentoBloco = comprimentoTela / linhas;
 
 // ESTRUTURA DE CADA BLOCO/CELULA DA MATRIZ DO JOGO
-typedef struct Bloco{
+typedef struct Bloco {
     int i;
     int j;
     int bombasProximas;
     bool possuiBomba;
     bool possuiFlag;
     bool revelado;
-}Bloco;
+} Bloco;
 
 // ESTRUTURA DO TIPO ENUM PARA DEFINIR O ESTADO ATUAL DO JOGADOR
-typedef enum GameStatus{
+typedef enum GameStatus {
     MENU,
     DIFICULDADE,
     RANKING,
     JOGANDO,
     DERROTA,
-    VITORIA
-}GameStatus;
+    VITORIA,
+    INSERIR_NOME
+} GameStatus;
 
-typedef enum Dificuldade{
+typedef enum Dificuldade {
     FACIL,
     MEDIO,
     DIFICIL
-}Dificuldade;
+} Dificuldade;
 
-typedef struct Player{
+typedef struct Player {
     char nome[50];
     float tempo;
     Dificuldade dificuldade;
-}Player;
+} Player;
 
 Player ranking[MAX_JOGADORES];
 Dificuldade dificuldade;
@@ -67,8 +68,11 @@ int bombasExistentes;
 float inicioCronometro;
 float fimCronometro;
 float ignoreClickTime = 0.3f;
-float transitionTime = 0.0f;
+float transitionTime = 0.3f;
 bool mostrarTelaFinal = false; // Nova variável para monitorar se a tela final foi exibida
+
+char nomeJogador[50];
+int nomeIndex = 0;
 
 // PROTOTIPAGEM DAS FUNÇÕES
 bool IndexValido(int, int);
@@ -83,10 +87,11 @@ void SalvarRanking(Player* ranking, int tamanho);
 int CarregarRanking(Player* ranking, int maxTamanho);
 void AtualizarRanking(Player* ranking, int* tamanho, Player novoJogador);
 void ExibirRanking(Player* ranking, int tamanho);
+int comparePlayers(const void* a, const void* b);
 
-int main(){
+int main() {
     setlocale(LC_ALL, "Portuguese");
-    Color lightGray = {211, 211, 211, 255};
+    Color lightGray = { 211, 211, 211, 255 };
     InitWindow(larguraTela, comprimentoTela, "Campo Minado");
     SetTargetFPS(60);
 
@@ -101,10 +106,10 @@ int main(){
     status = MENU;
 
     // ENQUANTO A JANELA NÃO FECHAR O JOGO VAI RODAR
-    while(WindowShouldClose() == false){
+    while (WindowShouldClose() == false) {
 
         // ESTRUTURA DO MENU 
-         if (status == MENU) {
+        if (status == MENU) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 Vector2 mousePoint = GetMousePosition();
 
@@ -131,7 +136,7 @@ int main(){
 
                 Rectangle easyButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 90, 100, 50 };
                 Rectangle mediumButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 20, 100, 50 };
-                Rectangle HardButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 70, 100, 50 };
+                Rectangle hardButton = { larguraTela / 2 - 50, comprimentoTela / 2 + 70, 100, 50 };
 
                 if (CheckCollisionPointRec(mousePoint, easyButton)) {
                     dificuldade = FACIL;
@@ -141,7 +146,7 @@ int main(){
                     dificuldade = MEDIO;
                     status = JOGANDO;
                     GameInit();
-                }else if(CheckCollisionPointRec(mousePoint, HardButton)){
+                } else if (CheckCollisionPointRec(mousePoint, hardButton)) {
                     dificuldade = DIFICIL;
                     status = JOGANDO;
                     GameInit();
@@ -150,34 +155,60 @@ int main(){
         }
 
         // "Funções" para registrar o clique do mouse e revelar ou colocar uma flag no bloco
-        if(IsMouseButtonPressed(MOUSE_BUTTON_LEFT)){
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Vector2 mPos = GetMousePosition();
             int indexI = mPos.x / larguraBloco;
             int indexJ = mPos.y / comprimentoBloco;
 
-            if(status == JOGANDO && IndexValido(indexI, indexJ) && !grid[indexI][indexJ].revelado){
+            if (status == JOGANDO && IndexValido(indexI, indexJ) && !grid[indexI][indexJ].revelado) {
                 RevelarBloco(indexI, indexJ);
             } else if ((status == DERROTA || status == VITORIA) && !mostrarTelaFinal) {
                 mostrarTelaFinal = true;
             }
-        }else if(IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)){
+        } else if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
             Vector2 mPos = GetMousePosition();
             int indexI = mPos.x / larguraBloco;
             int indexJ = mPos.y / comprimentoBloco;
 
-            if(status == JOGANDO && IndexValido(indexI, indexJ)){
+            if (status == JOGANDO && IndexValido(indexI, indexJ)) {
                 BlocoFlag(indexI, indexJ);
             }
         }
-        
+
         // Apertar Espaço para reiniciar o jogo
-        if(IsKeyPressed(KEY_SPACE)){
+        if (IsKeyPressed(KEY_SPACE)) {
             GameInit();
         }
 
         // Apertar Home para voltar ao menu
-        if(IsKeyPressed(KEY_HOME)){
+        if (IsKeyPressed(KEY_F9)) {
             status = MENU;
+        }
+
+        // Entrada de texto para o nome do jogador
+        if (status == INSERIR_NOME) {
+            int key = GetKeyPressed();
+            if ((key >= 32) && (key <= 125) && (nomeIndex < 49)) {
+                nomeJogador[nomeIndex] = (char)key;
+                nomeIndex++;
+                nomeJogador[nomeIndex] = '\0';
+            }
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                nomeIndex--;
+                if (nomeIndex < 0) nomeIndex = 0;
+                nomeJogador[nomeIndex] = '\0';
+            }
+            if (IsKeyPressed(KEY_ENTER) && nomeIndex > 0) { // Apenas se o jogador tiver inserido algum nome
+                Player novoJogador;
+                strcpy(novoJogador.nome, nomeJogador);
+                novoJogador.tempo = fimCronometro - inicioCronometro;
+                novoJogador.dificuldade = dificuldade;
+                if (novoJogador.tempo > 0) { // Adiciona ao ranking apenas se o tempo for maior que zero
+                AtualizarRanking(ranking, &tamanhoRanking, novoJogador);
+                SalvarRanking(ranking, tamanhoRanking);
+                }
+                status = RANKING;
+            }
         }
 
         BeginDrawing();
@@ -200,8 +231,7 @@ int main(){
             DrawText("Sair", larguraTela / 2 - MeasureText("Sair", 20) / 2, comprimentoTela / 2 + 105, 20, BLACK);
         }
 
-        if (status == DIFICULDADE)
-        {
+        if (status == DIFICULDADE) {
             DrawText("Escolha a dificuldade", larguraTela / 2 - MeasureText("Escolha a dificuldade", 30) / 2, comprimentoTela / 4 - 25, 30, BLACK);
 
             Rectangle easyButton = { larguraTela / 2 - 50, comprimentoTela / 2 - 90, 100, 50 };
@@ -217,42 +247,51 @@ int main(){
             DrawText("Difícil", larguraTela / 2 - MeasureText("Difícil", 20) / 2, comprimentoTela / 2 + 65, 20, BLACK);
         }
 
-        if (status == RANKING){
+        if (status == RANKING) {
             DrawText("Ranking", 50, 50, 30, BLACK);
             ExibirRanking(ranking, tamanhoRanking);
+            DrawText(home, 55, comprimentoTela - 40, 25, BLACK); // Adicionando instrução para voltar ao menu
         }
 
-        if(status == DERROTA && mostrarTelaFinal){
-            Vector2 mousePoint = GetMousePosition();
+        if (status == DERROTA && mostrarTelaFinal) {
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.6f));
-            DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 50, 30,  BLACK);
-            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30,  BLACK);
-            DrawText(home, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.85f, 30,  BLACK);
+            DrawText(derrota, larguraTela / 2 - MeasureText(derrota, 30) / 2, comprimentoTela / 2 - 50, 30, BLACK);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30, BLACK);
+            DrawText(home, larguraTela / 2 - MeasureText(home, 30) / 2 + 10, comprimentoTela * 0.85f, 20, BLACK);
 
             int minutos = (int)(fimCronometro - inicioCronometro) / 60;
             int segundos = (int)(fimCronometro - inicioCronometro) % 60;
             DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, RED);
         }
 
-        if(status == VITORIA && mostrarTelaFinal){
+        if (status == VITORIA && mostrarTelaFinal) {
             DrawRectangle(0, 0, larguraTela, comprimentoTela, Fade(WHITE, 0.9f));
-            DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 50, 30,  GREEN);
-            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30,  BLACK);
+            DrawText(vitoria, larguraTela / 2 - MeasureText(vitoria, 30) / 2, comprimentoTela / 2 - 50, 30, GREEN);
+            DrawText(reiniciar, larguraTela / 2 - MeasureText(reiniciar, 30) / 2, comprimentoTela * 0.45f, 30, BLACK);
 
             int minutos = (int)(fimCronometro - inicioCronometro) / 60;
             int segundos = (int)(fimCronometro - inicioCronometro) % 60;
             DrawText(TextFormat("Tempo de jogo: %d minutos, %d segundos.", minutos, segundos), 20, comprimentoTela - 40, 20, RED);
+
+            if(GetKeyPressed()){
+                status = INSERIR_NOME;
+            }
+        }
+
+        if (status == INSERIR_NOME) {
+            DrawText("Digite seu nome:", larguraTela / 2 - MeasureText("Digite seu nome:", 20) / 2, comprimentoTela / 2 - 50, 20, BLACK);
+            DrawText(nomeJogador, larguraTela / 2 - MeasureText(nomeJogador, 20) / 2, comprimentoTela / 2, 20, BLACK);
         }
 
         // Garantindo que só vai desenhar a grid quando o status for envolvendo o jogo (JOGANDO, DERROTA e VITORIA)
-        if(status == JOGANDO || (status == DERROTA && !mostrarTelaFinal) || (status == VITORIA && !mostrarTelaFinal)){
+        if (status == JOGANDO || (status == DERROTA && !mostrarTelaFinal) || (status == VITORIA && !mostrarTelaFinal)) {
             for (int i = 0; i < colunas; i++) {
                 for (int j = 0; j < linhas; j++) {
                     DesenharBloco(grid[i][j]);
                 }
             }
         }
-        
+
         EndDrawing();
     }
 
@@ -261,24 +300,24 @@ int main(){
 }
 
 // Função para desenhar os blocos com bombas e/ou flags e desenhar a grid do jogo
-void DesenharBloco(Bloco bloco){
-    if(bloco.revelado){
-        if(bloco.possuiBomba){
-            Rectangle source = {0, 0, bombaImagem.width, bombaImagem.height};
-            Rectangle dest = {bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco};
-            Vector2 origin = {0, 0};
+void DesenharBloco(Bloco bloco) {
+    if (bloco.revelado) {
+        if (bloco.possuiBomba) {
+            Rectangle source = { 0, 0, bombaImagem.width, bombaImagem.height };
+            Rectangle dest = { bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco };
+            Vector2 origin = { 0, 0 };
 
             DrawTexturePro(bombaImagem, source, dest, origin, 0.0f, Fade(RED, 0.8f));
-        }else{
+        } else {
             DrawRectangle(bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco, GRAY);
-            if(bloco.bombasProximas > 0){
+            if (bloco.bombasProximas > 0) {
                 DrawText(TextFormat("%d", bloco.bombasProximas), bloco.i * larguraBloco + 8, bloco.j * comprimentoBloco + 8, comprimentoBloco - 8, BLACK);
             }
         }
-    }else if(bloco.possuiFlag){
-        Rectangle source = {0, 0, flagImagem.width, flagImagem.height};
-        Rectangle dest = {bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco};
-        Vector2 origin = {0, 0};
+    } else if (bloco.possuiFlag) {
+        Rectangle source = { 0, 0, flagImagem.width, flagImagem.height };
+        Rectangle dest = { bloco.i * larguraBloco, bloco.j * comprimentoBloco, larguraBloco, comprimentoBloco };
+        Vector2 origin = { 0, 0 };
 
         DrawTexturePro(flagImagem, source, dest, origin, 0.0f, Fade(LIGHTGRAY, 0.8f));
     }
@@ -287,57 +326,58 @@ void DesenharBloco(Bloco bloco){
 }
 
 // Função para verificar se o index que o usuário clicou é válido
-bool IndexValido(int i, int j){
+bool IndexValido(int i, int j) {
     return i >= 0 && i < colunas && j >= 0 && j < linhas;
 }
 
 // Função para que ao clicar no bloco revele se tem ou não uma bomba
-void RevelarBloco(int i, int j){
-    if(grid[i][j].possuiFlag || grid[i][j].revelado){
+void RevelarBloco(int i, int j) {
+    if (grid[i][j].possuiFlag || grid[i][j].revelado) {
         return;
     }
-    
+
     grid[i][j].revelado = true;
 
-    if(grid[i][j].possuiBomba){
+    if (grid[i][j].possuiBomba) {
         status = DERROTA;
         fimCronometro = GetTime();
 
-    }else{
-        if(grid[i][j].bombasProximas == 0){
+    } else {
+        if (grid[i][j].bombasProximas == 0) {
             LimparGrid(i, j);
         }
         blocosRevelados++;
 
-        if(blocosRevelados == linhas * colunas - bombasExistentes){
+        if (blocosRevelados == linhas * colunas - bombasExistentes) {
             status = VITORIA;
             fimCronometro = GetTime();
+            mostrarTelaFinal = true;
         }
     }
 }
 
 // Função para colocar ou tirar a flag
-void BlocoFlag(int i, int j){
-    if(grid[i][j].revelado){
+void BlocoFlag(int i, int j) {
+    if (grid[i][j].revelado) {
         return;
     }
-    
+
     grid[i][j].possuiFlag = !grid[i][j].possuiFlag;
 }
 
 // Função para contar a quantidade de bombas ao redor do bloco
-int BlocoBombasProximas(int i, int j){
+int BlocoBombasProximas(int i, int j) {
     int contagem = 0;
-    for(int ioff= -1 ; ioff <= 1; ioff++){ // ioff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
-        for(int joff= -1 ; joff <= 1; joff++){ // joff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
-            if(ioff == 0 && joff == 0){
+    for (int ioff = -1; ioff <= 1; ioff++) { // ioff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
+        for (int joff = -1; joff <= 1; joff++) { // joff representa o bloco da linha anterior, da linha do próprio bloco e a próxima linha
+            if (ioff == 0 && joff == 0) {
                 continue;
             }
 
-            if(!IndexValido(i + ioff, j + joff)){
+            if (!IndexValido(i + ioff, j + joff)) {
                 continue;
             }
-            if(grid[i + ioff][j + joff].possuiBomba){
+                        if (grid[i + ioff][j + joff].possuiBomba) {
                 contagem++;
             }            
         }
@@ -346,9 +386,9 @@ int BlocoBombasProximas(int i, int j){
 }
 
 // Inicialização da grid
-void IniciarGrid(void){
-    for(int i=0; i < colunas; i++){
-        for(int j=0; j< linhas; j++){
+void IniciarGrid(void) {
+    for (int i = 0; i < colunas; i++) {
+        for (int j = 0; j < linhas; j++) {
             grid[i][j] = (Bloco) { // Iniciando a struct bloco
                 .i = i,
                 .j = j,
@@ -360,34 +400,33 @@ void IniciarGrid(void){
     }
 
     // Colocando Bombas
-    switch (dificuldade)
-    {
-    case FACIL:
-        bombasExistentes = (int)(linhas * colunas * 0.1f);
-        break;
-    case MEDIO:
-        bombasExistentes = (int)(linhas * colunas * 0.2f);
-        break;
-    case DIFICIL:
-        bombasExistentes = (int)(linhas * colunas * 0.3f);
-        break;
+    switch (dificuldade) {
+        case FACIL:
+            bombasExistentes = (int)(linhas * colunas * 0.1f);
+            break;
+        case MEDIO:
+            bombasExistentes = (int)(linhas * colunas * 0.15f);
+            break;
+        case DIFICIL:
+            bombasExistentes = (int)(linhas * colunas * 0.20f);
+            break;
     }
 
     int quantidadeBombas = bombasExistentes;
-    while(quantidadeBombas > 0){
+    while (quantidadeBombas > 0) {
         int i = rand() % colunas;
         int j = rand() % linhas;
 
-        if(!grid[i][j].possuiBomba){
+        if (!grid[i][j].possuiBomba) {
             grid[i][j].possuiBomba = true;
             quantidadeBombas--;
         }
     }
 
     // Colocando a quantidade de bombas próximas
-    for(int i=0; i < colunas; i++){
-        for(int j=0; j < linhas; j++){
-            if(!grid[i][j].possuiBomba){
+    for (int i = 0; i < colunas; i++) {
+        for (int j = 0; j < linhas; j++) {
+            if (!grid[i][j].possuiBomba) {
                 grid[i][j].bombasProximas = BlocoBombasProximas(i, j);
             }
         }
@@ -395,17 +434,17 @@ void IniciarGrid(void){
 }
 
 // Função para retirar todos os blocos ao redor que possuem o valor 0 e assim não poluir visualmente o jogo
-void LimparGrid(int i, int j){
-    for(int ioff= -1 ; ioff <= 1; ioff++){
-        for(int joff= -1 ; joff <= 1; joff++){
-            if(ioff == 0 && joff == 0){
+void LimparGrid(int i, int j) {
+    for (int ioff = -1; ioff <= 1; ioff++) {
+        for (int joff = -1; joff <= 1; joff++) {
+            if (ioff == 0 && joff == 0) {
                 continue;
             }
 
-            if(!IndexValido(i + ioff, j + joff)){
+            if (!IndexValido(i + ioff, j + joff)) {
                 continue;
             }
-            if(!grid[i + ioff][j + joff].revelado){
+            if (!grid[i + ioff][j + joff].revelado) {
                 RevelarBloco(i + ioff, j + joff);
             }            
         }
@@ -413,17 +452,19 @@ void LimparGrid(int i, int j){
 }
 
 // Inicializar o jogo
-void GameInit(){
+void GameInit() {
     IniciarGrid();
     status = JOGANDO;
     blocosRevelados = 0;
-        inicioCronometro = GetTime();
+    inicioCronometro = GetTime();
     mostrarTelaFinal = false; // Resetando a variável para a nova partida
+    nomeIndex = 0; // Resetando o índice do nome do jogador
+    memset(nomeJogador, 0, sizeof(nomeJogador)); // Limpando o nome do jogador
 }
 
-void SalvarRanking(Player* ranking, int tamanho){
+void SalvarRanking(Player* ranking, int tamanho) {
     FILE* file = fopen("ranking/ranking.dat", "wb");
-    if(file != NULL){
+    if (file != NULL) {
         fwrite(ranking, sizeof(Player), tamanho, file);
         fclose(file);
     }
@@ -436,28 +477,44 @@ int CarregarRanking(Player* ranking, int maxTamanho) {
         tamanho = fread(ranking, sizeof(Player), maxTamanho, file);
         fclose(file);
     }
-    return tamanho;
+
+    int validCount = 0;
+    for(int i=0; i < tamanho; i++){
+        if(ranking[i].tempo > 0){
+            ranking[validCount++] = ranking[i];
+        }
+    }
+    
+    return validCount;
 }
 
 void AtualizarRanking(Player* ranking, int* tamanho, Player novoJogador) {
-    ranking[*tamanho] = novoJogador;
-    (*tamanho)++;
-
-    for (int i = 0; i < *tamanho - 1; i++) {
-        for (int j = i + 1; j < *tamanho; j++) {
-            if (ranking[i].tempo > ranking[j].tempo) {
-                Player temp = ranking[i];
-                ranking[i] = ranking[j];
-                ranking[j] = temp;
-            }
+    if (novoJogador.tempo <= 0){
+        return;
+    }
+    
+    if (*tamanho < MAX_JOGADORES) {
+        ranking[*tamanho] = novoJogador;
+        (*tamanho)++;
+    } else {
+        if (ranking[MAX_JOGADORES - 1].tempo > novoJogador.tempo) {
+            ranking[MAX_JOGADORES - 1] = novoJogador;
         }
     }
 
-    if (*tamanho > 10) {
-        *tamanho = 10;
+    qsort(ranking, *tamanho, sizeof(Player), comparePlayers);
+
+    if (*tamanho > MAX_JOGADORES) {
+        *tamanho = MAX_JOGADORES;
     }
 
     SalvarRanking(ranking, *tamanho);
+}
+
+int comparePlayers(const void* a, const void* b) {
+    Player* playerA = (Player*)a;
+    Player* playerB = (Player*)b;
+    return (playerA->tempo > playerB->tempo) - (playerA->tempo < playerB->tempo);
 }
 
 void ExibirRanking(Player* ranking, int tamanho) {
